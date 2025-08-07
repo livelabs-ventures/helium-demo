@@ -1,0 +1,25 @@
+# Video files
+output.mp4
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
