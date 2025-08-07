@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4-Grid Video Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        .container {
+            width: 90vw;
+            max-width: 1200px;
+            background: #111;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .video-grid.expanded {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto;
+        }
+        
+        .main-player {
+            display: none;
+            margin-bottom: 10px;
+        }
+        
+        .video-grid.expanded .main-player {
+            display: block;
+        }
+        
+        .thumbnails {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .video-grid.expanded .thumbnails {
+            display: grid;
+        }
+        
+        .video-grid.expanded .video-player:not(.main-player):not(.thumbnail) {
+            display: none;
+        }
+        
+        .video-player {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .video-player:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.5);
+        }
+        
+        .video-player.thumbnail {
+            opacity: 0.7;
+        }
+        
+        .video-player.thumbnail:hover {
+            opacity: 1;
+        }
+        
+        .video-player canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .player-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+        
+        .time-display {
+            color: #888;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .seek-container {
+            padding: 0 10px;
+        }
+        
+        video {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-grid" id="videoGrid">
+            <div class="video-player" data-index="0">
+                <canvas id="canvas1"></canvas>
+                <div class="player-label">Top Left</div>
+            </div>
+            <div class="video-player" data-index="1">
+                <canvas id="canvas2"></canvas>
+                <div class="player-label">Top Right</div>
+            </div>
+            <div class="video-player" data-index="2">
+                <canvas id="canvas3"></canvas>
+                <div class="player-label">Bottom Left</div>
+            </div>
+            <div class="video-player" data-index="3">
+                <canvas id="canvas4"></canvas>
+                <div class="player-label">Bottom Right</div>
+            </div>
+        </div>
+        
+        <div class="seek-container">
+            <input type="range" id="seekBar" min="0" max="100" value="0" step="0.1">
+        </div>
+        
+        <div class="time-display" id="timeDisplay">00:00 / 00:00</div>
+        
+        <div class="controls">
+            <button id="playBtn">Play</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="muteBtn">Mute</button>
+            <button id="fullscreenBtn">Fullscreen</button>
+        </div>
+        
+        <video id="sourceVideo" src="output.mp4" preload="auto"></video>
+    </div>
+    
+    <script>
+        const video = document.getElementById('sourceVideo');
+        const videoGrid = document.getElementById('videoGrid');
+        const canvases = [
+            document.getElementById('canvas1'),
+            document.getElementById('canvas2'),
+            document.getElementById('canvas3'),
+            document.getElementById('canvas4')
+        ];
+        const contexts = canvases.map(canvas => canvas.getContext('2d'));
+        
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const seekBar = document.getElementById('seekBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+        
+        let animationId;
+        let expandedIndex = -1;
+        let mainCanvas, mainContext;
+        let thumbnailCanvases = [];
+        let thumbnailContexts = [];
+        
+        const labels = ['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right'];
+        
+        // Wait for video metadata to load
+        video.addEventListener('loadedmetadata', () => {
+            // Set canvas dimensions based on video dimensions
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            const halfWidth = videoWidth / 2;
+            const halfHeight = videoHeight / 2;
+            
+            canvases.forEach(canvas => {
+                canvas.width = halfWidth;
+                canvas.height = halfHeight;
+            });
+            
+            // Draw initial frame
+            drawFrames();
+        });
+        
+        function drawFrames() {
+            if (video.paused || video.ended) {
+                cancelAnimationFrame(animationId);
+                return;
+            }
+            
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            const halfWidth = videoWidth / 2;
+            const halfHeight = videoHeight / 2;
+            
+            if (expandedIndex === -1) {
+                // Normal grid view
+                contexts[0].drawImage(video, 0, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            } else {
+                // Expanded view
+                drawExpandedView();
+            }
+            
+            animationId = requestAnimationFrame(drawFrames);
+        }
+        
+        function drawExpandedView() {
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            const halfWidth = videoWidth / 2;
+            const halfHeight = videoHeight / 2;
+            
+            // Draw main expanded video
+            if (mainContext) {
+                const sourceX = expandedIndex % 2 === 0 ? 0 : halfWidth;
+                const sourceY = expandedIndex < 2 ? 0 : halfHeight;
+                mainContext.drawImage(video, sourceX, sourceY, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            }
+            
+            // Draw thumbnails
+            thumbnailContexts.forEach((ctx, i) => {
+                if (ctx) {
+                    const sourceX = i % 2 === 0 ? 0 : halfWidth;
+                    const sourceY = i < 2 ? 0 : halfHeight;
+                    ctx.drawImage(video, sourceX, sourceY, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                }
+            });
+        }
+        
+        // Click handler for video players
+        videoGrid.addEventListener('click', (e) => {
+            const player = e.target.closest('.video-player');
+            if (!player) return;
+            
+            const index = parseInt(player.dataset.index);
+            
+            if (expandedIndex === index) {
+                // Collapse back to grid
+                collapseToGrid();
+            } else if (expandedIndex === -1) {
+                // Expand from grid
+                expandToPlayer(index);
+            } else {
+                // Switch expanded player
+                expandToPlayer(index);
+            }
+        });
+        
+        function expandToPlayer(index) {
+            expandedIndex = index;
+            videoGrid.classList.add('expanded');
+            
+            // Clear existing expanded view
+            const existingMain = videoGrid.querySelector('.main-player');
+            const existingThumbnails = videoGrid.querySelector('.thumbnails');
+            if (existingMain) existingMain.remove();
+            if (existingThumbnails) existingThumbnails.remove();
+            
+            // Create main player
+            const mainPlayer = document.createElement('div');
+            mainPlayer.className = 'video-player main-player';
+            mainCanvas = document.createElement('canvas');
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            mainCanvas.width = videoWidth / 2;
+            mainCanvas.height = videoHeight / 2;
+            mainContext = mainCanvas.getContext('2d');
+            
+            const mainLabel = document.createElement('div');
+            mainLabel.className = 'player-label';
+            mainLabel.textContent = labels[index];
+            
+            mainPlayer.appendChild(mainCanvas);
+            mainPlayer.appendChild(mainLabel);
+            
+            // Create thumbnails container
+            const thumbnailsContainer = document.createElement('div');
+            thumbnailsContainer.className = 'thumbnails';
+            
+            // Reset thumbnail arrays
+            thumbnailCanvases = [];
+            thumbnailContexts = [];
+            
+            // Create thumbnails for other videos
+            for (let i = 0; i < 4; i++) {
+                if (i !== index) {
+                    const thumbPlayer = document.createElement('div');
+                    thumbPlayer.className = 'video-player thumbnail';
+                    thumbPlayer.dataset.index = i;
+                    
+                    const thumbCanvas = document.createElement('canvas');
+                    thumbCanvas.width = videoWidth / 2;
+                    thumbCanvas.height = videoHeight / 2;
+                    
+                    const thumbLabel = document.createElement('div');
+                    thumbLabel.className = 'player-label';
+                    thumbLabel.textContent = labels[i];
+                    
+                    thumbPlayer.appendChild(thumbCanvas);
+                    thumbPlayer.appendChild(thumbLabel);
+                    thumbnailsContainer.appendChild(thumbPlayer);
+                    
+                    thumbnailCanvases[i] = thumbCanvas;
+                    thumbnailContexts[i] = thumbCanvas.getContext('2d');
+                } else {
+                    thumbnailCanvases[i] = null;
+                    thumbnailContexts[i] = null;
+                }
+            }
+            
+            // Insert at beginning of grid
+            videoGrid.insertBefore(mainPlayer, videoGrid.firstChild);
+            videoGrid.appendChild(thumbnailsContainer);
+            
+            // Draw current frame if paused
+            if (video.paused) {
+                drawExpandedView();
+            }
+        }
+        
+        function collapseToGrid() {
+            expandedIndex = -1;
+            videoGrid.classList.remove('expanded');
+            
+            // Remove expanded elements
+            const existingMain = videoGrid.querySelector('.main-player');
+            const existingThumbnails = videoGrid.querySelector('.thumbnails');
+            if (existingMain) existingMain.remove();
+            if (existingThumbnails) existingThumbnails.remove();
+            
+            // Draw current frame if paused
+            if (video.paused) {
+                const videoWidth = video.videoWidth;
+                const videoHeight = video.videoHeight;
+                const halfWidth = videoWidth / 2;
+                const halfHeight = videoHeight / 2;
+                
+                contexts[0].drawImage(video, 0, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            }
+        }
+        
+        // Controls
+        playBtn.addEventListener('click', () => {
+            video.play();
+            drawFrames();
+        });
+        
+        pauseBtn.addEventListener('click', () => {
+            video.pause();
+        });
+        
+        muteBtn.addEventListener('click', () => {
+            video.muted = !video.muted;
+            muteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
+        });
+        
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.querySelector('.container').requestFullscreen();
+            }
+        });
+        
+        // Seek bar
+        video.addEventListener('timeupdate', () => {
+            const progress = (video.currentTime / video.duration) * 100;
+            seekBar.value = progress;
+            
+            const currentMinutes = Math.floor(video.currentTime / 60);
+            const currentSeconds = Math.floor(video.currentTime % 60);
+            const durationMinutes = Math.floor(video.duration / 60);
+            const durationSeconds = Math.floor(video.duration % 60);
+            
+            timeDisplay.textContent = 
+                `${currentMinutes.toString().padStart(2, '0')}:${currentSeconds.toString().padStart(2, '0')} / ` +
+                `${durationMinutes.toString().padStart(2, '0')}:${durationSeconds.toString().padStart(2, '0')}`;
+        });
+        
+        seekBar.addEventListener('input', () => {
+            const time = (seekBar.value / 100) * video.duration;
+            video.currentTime = time;
+        });
+        
+        // Auto-draw frame when seeking while paused
+        video.addEventListener('seeked', () => {
+            if (video.paused) {
+                const videoWidth = video.videoWidth;
+                const videoHeight = video.videoHeight;
+                const halfWidth = videoWidth / 2;
+                const halfHeight = videoHeight / 2;
+                
+                if (expandedIndex === -1) {
+                    contexts[0].drawImage(video, 0, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                    contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                    contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                    contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                } else {
+                    drawExpandedView();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
