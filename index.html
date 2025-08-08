@@ -170,7 +170,12 @@
                 gap: 5px;
             }
             .video-grid.expanded { grid-template-columns: 1fr; }
-            .video-grid.expanded .thumbnails { margin-top: 12px; }
+            .video-grid.expanded .thumbnails {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-top: 12px;
+            }
         }
         
         button {
