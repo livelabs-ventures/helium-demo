@@ -70,8 +70,9 @@
         }
         
         .video-grid.expanded {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 320px;
             grid-template-rows: auto;
+            align-items: start;
         }
         
         .main-player {
@@ -85,17 +86,15 @@
         
         .thumbnails {
             display: none;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
+            gap: 14px;
         }
         
         .video-grid.expanded .thumbnails {
-            display: grid;
+            display: flex;
+            flex-direction: column;
         }
         
-        .video-grid.expanded .video-player:not(.main-player):not(.thumbnail) {
-            display: none;
-        }
+        .video-grid.expanded .video-player:not(.main-player):not(.thumbnail) { display: none; }
         
         .video-player {
             position: relative;
@@ -118,8 +117,10 @@
             .video-player:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.55); }
         }
         
-        .video-player.thumbnail { opacity: 0.85; }
+        .video-player.thumbnail { opacity: 0.9; }
         .video-player.thumbnail:hover { opacity: 1; }
+
+        .thumbnail.active { box-shadow: 0 0 0 2px var(--primary) inset, 0 10px 24px rgba(0,0,0,0.18); }
         
         .video-player canvas {
             width: 100%;
@@ -168,6 +169,8 @@
             .controls {
                 gap: 5px;
             }
+            .video-grid.expanded { grid-template-columns: 1fr; }
+            .video-grid.expanded .thumbnails { margin-top: 12px; }
         }
         
         button {
@@ -591,11 +594,10 @@
             
             // Draw thumbnails
             thumbnailContexts.forEach((ctx, i) => {
-                if (ctx) {
-                    const sourceX = i % 2 === 0 ? 0 : halfWidth;
-                    const sourceY = i < 2 ? 0 : halfHeight;
-                    ctx.drawImage(video, sourceX, sourceY, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
-                }
+                if (!ctx) return;
+                const sourceX = i % 2 === 0 ? 0 : halfWidth;
+                const sourceY = i < 2 ? 0 : halfHeight;
+                ctx.drawImage(video, sourceX, sourceY, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
             });
         }
         
@@ -620,8 +622,10 @@
                 // Expand from grid
                 expandToPlayer(index);
             } else if (expandedIndex !== index) {
-                // Switch expanded player
+                // Switch expanded player; also update active thumbnail highlight
                 expandToPlayer(index);
+                const thumbs = videoGrid.querySelectorAll('.thumbnail');
+                thumbs.forEach(t => t.classList.toggle('active', parseInt(t.dataset.index, 10) === index));
             } else {
                 // Clicking the same tile while expanded collapses
                 collapseToGrid();
@@ -671,34 +675,30 @@
             thumbnailCanvases = [];
             thumbnailContexts = [];
             
-            // Create thumbnails for other videos
+            // Create thumbnails for all videos (including the active one)
             for (let i = 0; i < 4; i++) {
-                if (i !== index) {
-                    const thumbPlayer = document.createElement('div');
-                    thumbPlayer.className = 'video-player thumbnail';
-                    thumbPlayer.dataset.index = i;
-                    
-                    const thumbCanvas = document.createElement('canvas');
-                    thumbCanvas.width = videoWidth / 2;
-                    thumbCanvas.height = videoHeight / 2;
-                    
-                    const thumbLabel = document.createElement('div');
-                    thumbLabel.className = 'player-label';
-                    thumbLabel.textContent = labels[i];
-                    
-                    thumbPlayer.appendChild(thumbCanvas);
-                    thumbPlayer.appendChild(thumbLabel);
-                    thumbnailsContainer.appendChild(thumbPlayer);
-                    
-                    thumbnailCanvases[i] = thumbCanvas;
-                    thumbnailContexts[i] = thumbCanvas.getContext('2d');
-                } else {
-                    thumbnailCanvases[i] = null;
-                    thumbnailContexts[i] = null;
-                }
+                const thumbPlayer = document.createElement('div');
+                thumbPlayer.className = 'video-player thumbnail';
+                if (i === index) thumbPlayer.classList.add('active');
+                thumbPlayer.dataset.index = i;
+                
+                const thumbCanvas = document.createElement('canvas');
+                thumbCanvas.width = videoWidth / 2;
+                thumbCanvas.height = videoHeight / 2;
+                
+                const thumbLabel = document.createElement('div');
+                thumbLabel.className = 'player-label';
+                thumbLabel.textContent = labels[i];
+                
+                thumbPlayer.appendChild(thumbCanvas);
+                thumbPlayer.appendChild(thumbLabel);
+                thumbnailsContainer.appendChild(thumbPlayer);
+                
+                thumbnailCanvases[i] = thumbCanvas;
+                thumbnailContexts[i] = thumbCanvas.getContext('2d');
             }
             
-            // Insert at beginning of grid
+            // Insert as grid areas: main left, thumbnails right
             videoGrid.insertBefore(mainPlayer, videoGrid.firstChild);
             videoGrid.appendChild(thumbnailsContainer);
             
