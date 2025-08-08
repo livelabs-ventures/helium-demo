@@ -550,7 +550,10 @@
                 canvas.height = halfHeight;
             });
             
-            // Draw initial frame
+            // Start in expanded mode by default
+            expandToPlayer(0);
+            
+            // Start render loop
             drawFrames();
         });
         
