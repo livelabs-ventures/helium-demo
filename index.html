@@ -151,6 +151,12 @@
             .video-player:focus-within .player-label { opacity: 1; }
         }
         
+        /* Mobile: hide labels shortly after a switch in expanded view */
+        @media (hover: none), (pointer: coarse) {
+            .video-grid.expanded .player-label { opacity: 1; }
+            .video-grid.expanded.labels-hide .player-label { opacity: 0; }
+        }
+        
         .controls {
             display: flex;
             gap: 10px;
@@ -626,6 +632,14 @@
             expandedIndex = index;
             videoGrid.classList.add('expanded');
             
+            // On mobile, show labels briefly then hide after 300ms
+            if (isMobile) {
+                videoGrid.classList.remove('labels-hide');
+                setTimeout(() => {
+                    videoGrid.classList.add('labels-hide');
+                }, 300);
+            }
+            
             // Clear existing expanded view
             const existingMain = videoGrid.querySelector('.main-player');
             const existingThumbnails = videoGrid.querySelector('.thumbnails');
@@ -697,6 +711,7 @@
         function collapseToGrid() {
             expandedIndex = -1;
             videoGrid.classList.remove('expanded');
+            videoGrid.classList.remove('labels-hide');
             
             // Remove expanded elements
             const existingMain = videoGrid.querySelector('.main-player');
