@@ -341,7 +341,7 @@
         
         @media (max-width: 768px) {
             .modal-content {
-                padding: 20px;
+               z padding: 20px;
             }
             
             .settings-btn {
@@ -374,7 +374,7 @@
     <header class="site-header">
         <div class="header-inner">
             <div class="brand">
-                <img src="sblogo.png" alt="Helium" class="brand-logo" />
+                <img src="logo.png" alt="Helium" class="brand-logo" />
             </div>
             <button class="settings-btn" id="settingsBtn" aria-label="Settings">
                 <svg class="settings-icon" viewBox="0 0 24 24">
@@ -483,8 +483,8 @@
         const saveBtn = document.getElementById('saveBtn');
         const hlsUrlInput = document.getElementById('hlsUrl');
         
-        // HLS Setup
-        let videoSrc = localStorage.getItem('hlsUrl') || 'https://video.blivenyc.com/003363-022958-b-321_33uk/hls/file-2992k.m3u8';
+        // HLS Setup 'https://video.blivenyc.com/003363-022958-b-321_33uk/hls/file-2992k.m3u8';
+        let videoSrc = localStorage.getItem('hlsUrl') || 'mtb/output.m3u8';
         let hls = null;
         
         // Check if we're on mobile
