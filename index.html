@@ -484,7 +484,17 @@
         const hlsUrlInput = document.getElementById('hlsUrl');
         
         // HLS Setup 'https://video.blivenyc.com/003363-022958-b-321_33uk/hls/file-2992k.m3u8';
-        let videoSrc = localStorage.getItem('hlsUrl') || 'mtb/output.m3u8';
+        // Start fresh: one-time purge of old keys, then default to local manifest
+        (function resetOldCacheOnce() {
+            const resetFlagKey = 'cacheResetV1';
+            if (!localStorage.getItem(resetFlagKey)) {
+                localStorage.removeItem('hlsUrl');
+                localStorage.removeItem('cachedUrl');
+                localStorage.setItem(resetFlagKey, 'true');
+            }
+        })();
+
+        let videoSrc = localStorage.getItem('cachedUrl') || 'mtb/output.m3u8';
         let hls = null;
         
         // Check if we're on mobile
@@ -831,7 +841,7 @@
             const newUrl = hlsUrlInput.value.trim();
             if (newUrl) {
                 videoSrc = newUrl;
-                localStorage.setItem('hlsUrl', newUrl);
+                localStorage.setItem('cachedUrl', newUrl);
                 
                 // Reload video with new URL
                 video.pause();
