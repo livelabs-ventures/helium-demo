@@ -335,7 +335,7 @@
             hlsUrlInput.value = videoSrc; const primaryPicker = document.getElementById('accentPrimary'); const secondaryPicker = document.getElementById('accentSecondary');
             if (primaryPicker) primaryPicker.value = savedPrimary; if (secondaryPicker) secondaryPicker.value = savedSecondary; settingsModal.classList.add('show');
         });
-        const closeModal = document.getElementById('closeModal'); const cancelBtn = document.getElementById('cancelBtn');
+        
         closeModal.addEventListener('click', () => { settingsModal.classList.remove('show'); });
         cancelBtn.addEventListener('click', () => { settingsModal.classList.remove('show'); });
         saveBtn.addEventListener('click', () => {
