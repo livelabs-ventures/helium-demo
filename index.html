@@ -420,7 +420,7 @@
         <video id="sourceVideo" preload="auto" playsinline></video>
     </div>
     
-    <div class="modal" id="settingsModal">
+    <div class="modal" id="settingsModal" hidden>
         <div class="modal-content">
             <div class="modal-header">
                 <span class="modal-title">Settings</span>
@@ -827,15 +827,18 @@
             const secondaryPicker = document.getElementById('accentSecondary');
             if (primaryPicker) primaryPicker.value = savedPrimary;
             if (secondaryPicker) secondaryPicker.value = savedSecondary;
+            settingsModal.hidden = false;
             settingsModal.classList.add('show');
         });
         
         closeModal.addEventListener('click', () => {
             settingsModal.classList.remove('show');
+            settingsModal.hidden = true;
         });
         
         cancelBtn.addEventListener('click', () => {
             settingsModal.classList.remove('show');
+            settingsModal.hidden = true;
         });
         
         saveBtn.addEventListener('click', () => {
@@ -857,12 +860,14 @@
             document.documentElement.style.setProperty('--primary', newPrimary);
             document.documentElement.style.setProperty('--primary-2', newSecondary);
             settingsModal.classList.remove('show');
+            settingsModal.hidden = true;
         });
         
         // Close modal on background click
         settingsModal.addEventListener('click', (e) => {
             if (e.target === settingsModal) {
                 settingsModal.classList.remove('show');
+                settingsModal.hidden = true;
             }
         });
         

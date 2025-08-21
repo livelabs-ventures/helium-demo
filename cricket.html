@@ -142,7 +142,7 @@
         <video id="sourceVideo" preload="auto" playsinline></video>
     </div>
 
-    <div class="modal" id="settingsModal">
+    <div class="modal" id="settingsModal" hidden>
         <div class="modal-content">
             <div class="modal-header">
                 <span class="modal-title">Settings</span>
@@ -333,20 +333,20 @@
 
         settingsBtn.addEventListener('click', () => {
             hlsUrlInput.value = videoSrc; const primaryPicker = document.getElementById('accentPrimary'); const secondaryPicker = document.getElementById('accentSecondary');
-            if (primaryPicker) primaryPicker.value = savedPrimary; if (secondaryPicker) secondaryPicker.value = savedSecondary; settingsModal.classList.add('show');
+            if (primaryPicker) primaryPicker.value = savedPrimary; if (secondaryPicker) secondaryPicker.value = savedSecondary; settingsModal.hidden = false; settingsModal.classList.add('show');
         });
         
-        closeModal.addEventListener('click', () => { settingsModal.classList.remove('show'); });
-        cancelBtn.addEventListener('click', () => { settingsModal.classList.remove('show'); });
+        closeModal.addEventListener('click', () => { settingsModal.classList.remove('show'); settingsModal.hidden = true; });
+        cancelBtn.addEventListener('click', () => { settingsModal.classList.remove('show'); settingsModal.hidden = true; });
         saveBtn.addEventListener('click', () => {
             const newUrl = hlsUrlInput.value.trim(); if (newUrl) { videoSrc = newUrl; localStorage.setItem(key('cachedUrl'), newUrl); video.pause(); loadHLS(); }
             const primaryPicker = document.getElementById('accentPrimary'); const secondaryPicker = document.getElementById('accentSecondary');
             const newPrimary = primaryPicker ? primaryPicker.value : savedPrimary; const newSecondary = secondaryPicker ? secondaryPicker.value : savedSecondary;
             localStorage.setItem(key('accentPrimary'), newPrimary); localStorage.setItem(key('accentSecondary'), newSecondary);
             document.documentElement.style.setProperty('--primary', newPrimary); document.documentElement.style.setProperty('--primary-2', newSecondary);
-            settingsModal.classList.remove('show');
+            settingsModal.classList.remove('show'); settingsModal.hidden = true;
         });
-        settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) { settingsModal.classList.remove('show'); } });
+        settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) { settingsModal.classList.remove('show'); settingsModal.hidden = true; } });
 
         if (isMobile) { video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', ''); video.playsInline = true; }
     </script>

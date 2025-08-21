@@ -132,7 +132,7 @@
     <video id="sourceVideo" preload="auto" playsinline></video>
   </div>
 
-  <div class="modal" id="settingsModal">
+  <div class="modal" id="settingsModal" hidden>
     <div class="modal-content" style="background: var(--surface); padding: 28px; border-radius: 16px; width: 100%; max-width: 520px; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-elev);">
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <span class="modal-title" style="font-size: 18px; font-weight: 600; color: var(--text-primary);">Settings</span>
@@ -460,15 +460,18 @@
 
     settingsBtn.addEventListener('click', () => {
       hlsUrlInput.value = videoSrc;
+      settingsModal.hidden = false;
       settingsModal.style.display = 'flex';
     });
 
     closeModal.addEventListener('click', () => {
       settingsModal.style.display = 'none';
+      settingsModal.hidden = true;
     });
 
     cancelBtn.addEventListener('click', () => {
       settingsModal.style.display = 'none';
+      settingsModal.hidden = true;
     });
 
     saveBtn.addEventListener('click', () => {
@@ -480,11 +483,13 @@
         loadHLS();
       }
       settingsModal.style.display = 'none';
+      settingsModal.hidden = true;
     });
 
     settingsModal.addEventListener('click', (e) => {
       if (e.target === settingsModal) {
         settingsModal.style.display = 'none';
+        settingsModal.hidden = true;
       }
     });
 
