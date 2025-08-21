@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Betway SA20 Quad Player</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        :root {
+            /* Betway SA20-inspired dark theme */
+            --bg: #0B0E2C; /* deep navy */
+            --surface: #10153A; /* card/modal surface */
+            --elevated: #141A45; /* slightly lighter for elevation */
+            --border: rgba(255, 255, 255, 0.10);
+            --text-primary: #E8F1FF;
+            --text-muted: #9FB1D6;
+            --chip-bg: rgba(255, 255, 255, 0.08);
+            --primary: #00D2FF; /* teal/cyan */
+            --primary-2: #7BFF00; /* lime */
+            --primary-gradient: linear-gradient(135deg, var(--primary), var(--primary-2));
+            --ring: rgba(0, 210, 255, 0.35);
+            --shadow-elev: 0 8px 24px rgba(0,0,0,0.45);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); min-height: 100vh; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: var(--text-primary); }
+        .container { width: 100%; max-width: 1280px; background: transparent; padding: 24px 24px 40px; border-radius: 20px; position: relative; margin: 16px auto 24px; }
+        @media (max-width: 768px) { .container { padding: 10px; border-radius: 8px; } }
+
+        .video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; transition: all 0.3s ease; }
+        @media (max-width: 768px) { .video-grid { gap: 5px; margin-bottom: 10px; } }
+        .video-grid.expanded { grid-template-columns: 1fr 320px; grid-template-rows: auto; align-items: start; }
+        .main-player { display: none; margin-bottom: 16px; }
+        .video-grid.expanded .main-player { display: block; }
+        .thumbnails { display: none; gap: 14px; }
+        .video-grid.expanded .thumbnails { display: flex; flex-direction: column; }
+        .video-grid.expanded .video-player:not(.main-player):not(.thumbnail) { display: none; }
+
+        .video-player { position: relative; background: #000; border-radius: 20px; overflow: hidden; aspect-ratio: 16/9; cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.55); }
+        @media (hover: hover) { .video-player { cursor: default; } }
+        @media (hover: hover) { .video-player:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.55); } }
+        .video-player.thumbnail { opacity: 0.9; }
+        .video-player.thumbnail:hover { opacity: 1; }
+        .thumbnail.active { box-shadow: 0 0 0 2px var(--primary) inset, 0 10px 24px rgba(0,0,0,0.18); }
+        .video-player canvas { width: 100%; height: 100%; display: block; }
+
+        .player-label { position: absolute; top: 10px; left: 10px; background: var(--chip-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 10; pointer-events: none; backdrop-filter: blur(4px); transition: opacity 0.2s ease; }
+        @media (hover: hover) { .player-label { opacity: 0; } .video-player:hover .player-label, .video-player:focus-within .player-label { opacity: 1; } }
+        @media (hover: none), (pointer: coarse) { .video-grid.expanded .player-label { opacity: 1; } .video-grid.expanded.labels-hide .player-label { opacity: 0; } }
+
+        .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        @media (max-width: 768px) { .controls { gap: 5px; } .video-grid.expanded { grid-template-columns: 1fr; } .video-grid.expanded .thumbnails { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; } }
+
+        button { background: var(--primary-gradient); color: #000; border: 0; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-size: 14px; font-weight: 700; transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.2s ease; -webkit-tap-highlight-color: transparent; box-shadow: 0 6px 18px rgba(0, 210, 255, 0.35); }
+        @media (max-width: 768px) { button { padding: 8px 16px; font-size: 13px; } }
+        button:hover { opacity: 0.95; transform: translateY(-1px); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .time-display { color: var(--text-muted); padding: 10px; text-align: center; font-size: 14px; }
+
+        input[type="range"] { width: 100%; margin: 10px 0; -webkit-appearance: none; appearance: none; background: transparent; }
+        input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(90deg, var(--primary), var(--primary-2)); opacity: 0.6; border-radius: 999px; }
+        input[type="range"]::-moz-range-track { height: 6px; background: linear-gradient(90deg, var(--primary), var(--primary-2)); opacity: 0.6; border-radius: 999px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: white; border: 2px solid var(--primary); margin-top: -5px; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+        input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: white; border: 2px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+
+        .seek-container { padding: 0 10px; }
+        video { display: none; }
+
+        .settings-btn { position: static; background: rgba(255,255,255,0.06); border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; z-index: 100; color: var(--text-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+        .settings-btn:hover { background: rgba(255,255,255,0.12); transform: rotate(90deg); box-shadow: 0 0 0 1px var(--ring) inset; }
+        .settings-icon { width: 20px; height: 20px; fill: currentColor; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.45); align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal.show { display: flex; }
+        .modal-content { background: var(--surface); padding: 28px; border-radius: 16px; width: 100%; max-width: 520px; color: var(--text-primary); border: 1px solid var(--border); box-shadow: var(--shadow-elev); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+        .close-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-primary); width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 18px; line-height: 1; }
+        .close-btn:hover { background: rgba(255,255,255,0.12); }
+        .input-group { margin-bottom: 20px; }
+        .input-label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; }
+        .url-input { width: 100%; padding: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        .url-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(122,90,248,0.25); }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+        .save-btn { background: var(--primary-gradient); box-shadow: 0 6px 18px rgba(122, 90, 248, 0.35); }
+        .cancel-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+        @media (max-width: 768px) { .modal-content { padding: 20px; } .settings-btn { width: 32px; height: 32px; } .settings-icon { width: 18px; height: 18px; } }
+
+        /* Header */
+        .site-header { position: sticky; top: 0; background: rgba(8,12,40,0.75); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+        .brand-logo { height: 64px; width: auto; display: block; }
+        .header-inner .settings-btn { margin-left: auto; }
+        .color-input { width: 56px; height: 40px; padding: 0; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <img src="assets/sa20-logo.png" alt="Betway SA20" class="brand-logo" />
+            </div>
+            <button class="settings-btn" id="settingsBtn" aria-label="Settings">
+                <svg class="settings-icon" viewBox="0 0 24 24">
+                    <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.65-.07-.97l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.32-.07.64-.07.97c0 .33.03.65.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.39 1.06.73 1.69.98l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.25 1.17-.59 1.69-.98l2.49 1c.22.08.49 0 .61-.22l2-3.46c.13-.22.07-.49-.12-.64l-2.11-1.63Z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+    <div class="container">
+        <div class="video-grid" id="videoGrid">
+            <div class="video-player" data-index="0">
+                <canvas id="canvas1"></canvas>
+                <div class="player-label">Top Left</div>
+            </div>
+            <div class="video-player" data-index="1">
+                <canvas id="canvas2"></canvas>
+                <div class="player-label">Top Right</div>
+            </div>
+            <div class="video-player" data-index="2">
+                <canvas id="canvas3"></canvas>
+                <div class="player-label">Bottom Left</div>
+            </div>
+            <div class="video-player" data-index="3">
+                <canvas id="canvas4"></canvas>
+                <div class="player-label">Bottom Right</div>
+            </div>
+        </div>
+        <div class="seek-container">
+            <input type="range" id="seekBar" min="0" max="100" value="0" step="0.1">
+        </div>
+        <div class="time-display" id="timeDisplay">00:00 / 00:00</div>
+        <div class="controls">
+            <button id="playBtn">Play</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="muteBtn">Mute</button>
+        </div>
+        <video id="sourceVideo" preload="auto" playsinline></video>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Settings</span>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="input-group">
+                <label class="input-label" for="hlsUrl">HLS Stream URL</label>
+                <input type="text" id="hlsUrl" class="url-input" placeholder="https://example.com/stream.m3u8">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Accent color</label>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="color" id="accentPrimary" class="color-input" value="#00D2FF" aria-label="Primary accent color">
+                    <input type="color" id="accentSecondary" class="color-input" value="#7BFF00" aria-label="Secondary accent color">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="cancel-btn" id="cancelBtn">Cancel</button>
+                <button class="save-btn" id="saveBtn">Save & Reload</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('sourceVideo');
+        const videoGrid = document.getElementById('videoGrid');
+        const canvases = [ document.getElementById('canvas1'), document.getElementById('canvas2'), document.getElementById('canvas3'), document.getElementById('canvas4') ];
+        const contexts = canvases.map(canvas => canvas.getContext('2d'));
+
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const seekBar = document.getElementById('seekBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+
+        let animationId; let expandedIndex = -1; let mainCanvas, mainContext; let thumbnailCanvases = []; let thumbnailContexts = [];
+        const labels = ['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right'];
+
+        // Namespaced storage keys (cricket)
+        const STORAGE_NS = 'cricket';
+        const key = (n) => `${n}_${STORAGE_NS}`;
+
+        // Apply saved accent colors if present
+        const savedPrimary = localStorage.getItem(key('accentPrimary')) || '#00D2FF';
+        const savedSecondary = localStorage.getItem(key('accentSecondary')) || '#7BFF00';
+        document.documentElement.style.setProperty('--primary', savedPrimary);
+        document.documentElement.style.setProperty('--primary-2', savedSecondary);
+
+        // Settings Modal
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeModal = document.getElementById('closeModal');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const hlsUrlInput = document.getElementById('hlsUrl');
+
+        // One-time purge of old keys in this namespace
+        (function resetOldCacheOnce() {
+            const resetFlagKey = key('cacheResetV1');
+            if (!localStorage.getItem(resetFlagKey)) {
+                localStorage.removeItem(key('hlsUrl'));
+                localStorage.removeItem(key('cachedUrl'));
+                localStorage.setItem(resetFlagKey, 'true');
+            }
+        })();
+
+        let videoSrc = localStorage.getItem(key('cachedUrl')) || 'cricket/output.m3u8';
+        let hls = null;
+
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const hasHover = window.matchMedia('(hover: hover)').matches;
+
+        function loadHLS() {
+            if (hls) { hls.destroy(); hls = null; }
+            if (Hls.isSupported()) {
+                hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+                hls.loadSource(videoSrc);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
+                            case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
+                            default: hls.destroy(); break;
+                        }
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc;
+            }
+        }
+
+        loadHLS();
+
+        video.addEventListener('loadedmetadata', () => {
+            const videoWidth = video.videoWidth; const videoHeight = video.videoHeight; const halfWidth = videoWidth / 2; const halfHeight = videoHeight / 2;
+            canvases.forEach(canvas => { canvas.width = halfWidth; canvas.height = halfHeight; });
+            expandToPlayer(0);
+            drawFrames();
+        });
+
+        function drawFrames() {
+            if (video.paused || video.ended) { cancelAnimationFrame(animationId); return; }
+            const videoWidth = video.videoWidth; const videoHeight = video.videoHeight; const halfWidth = videoWidth / 2; const halfHeight = videoHeight / 2;
+            if (expandedIndex === -1) {
+                contexts[0].drawImage(video, 0, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            } else {
+                drawExpandedView();
+            }
+            animationId = requestAnimationFrame(drawFrames);
+        }
+
+        function drawExpandedView() {
+            const videoWidth = video.videoWidth; const videoHeight = video.videoHeight; const halfWidth = videoWidth / 2; const halfHeight = videoHeight / 2;
+            if (mainContext) {
+                const sourceX = expandedIndex % 2 === 0 ? 0 : halfWidth;
+                const sourceY = expandedIndex < 2 ? 0 : halfHeight;
+                mainContext.drawImage(video, sourceX, sourceY, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            }
+            thumbnailContexts.forEach((ctx, i) => {
+                if (!ctx) return;
+                const sourceX = i % 2 === 0 ? 0 : halfWidth;
+                const sourceY = i < 2 ? 0 : halfHeight;
+                ctx.drawImage(video, sourceX, sourceY, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            });
+        }
+
+        document.getElementById('videoGrid').addEventListener('click', (e) => {
+            const main = e.target.closest('.main-player');
+            if (main) { collapseToGrid(); return; }
+            const player = e.target.closest('.video-player'); if (!player) return;
+            const indexAttr = player.dataset.index; if (indexAttr === undefined) return; const index = parseInt(indexAttr, 10); if (isNaN(index)) return;
+            if (expandedIndex === -1) { expandToPlayer(index); }
+            else if (expandedIndex !== index) { expandToPlayer(index); const thumbs = videoGrid.querySelectorAll('.thumbnail'); thumbs.forEach(t => t.classList.toggle('active', parseInt(t.dataset.index, 10) === index)); }
+            else { collapseToGrid(); }
+        });
+
+        function expandToPlayer(index) {
+            expandedIndex = index; videoGrid.classList.add('expanded');
+            if (isMobile) { videoGrid.classList.remove('labels-hide'); setTimeout(() => { videoGrid.classList.add('labels-hide'); }, 300); }
+            const existingMain = videoGrid.querySelector('.main-player'); const existingThumbnails = videoGrid.querySelector('.thumbnails'); if (existingMain) existingMain.remove(); if (existingThumbnails) existingThumbnails.remove();
+            const mainPlayer = document.createElement('div'); mainPlayer.className = 'video-player main-player';
+            mainCanvas = document.createElement('canvas'); const videoWidth = video.videoWidth; const videoHeight = video.videoHeight; mainCanvas.width = videoWidth / 2; mainCanvas.height = videoHeight / 2; mainContext = mainCanvas.getContext('2d');
+            const mainLabel = document.createElement('div'); mainLabel.className = 'player-label'; mainLabel.textContent = labels[index];
+            mainPlayer.appendChild(mainCanvas); mainPlayer.appendChild(mainLabel);
+            const thumbnailsContainer = document.createElement('div'); thumbnailsContainer.className = 'thumbnails';
+            thumbnailCanvases = []; thumbnailContexts = [];
+            for (let i = 0; i < 4; i++) {
+                const thumbPlayer = document.createElement('div'); thumbPlayer.className = 'video-player thumbnail'; if (i === index) thumbPlayer.classList.add('active'); thumbPlayer.dataset.index = i;
+                const thumbCanvas = document.createElement('canvas'); thumbCanvas.width = videoWidth / 2; thumbCanvas.height = videoHeight / 2;
+                const thumbLabel = document.createElement('div'); thumbLabel.className = 'player-label'; thumbLabel.textContent = labels[i];
+                thumbPlayer.appendChild(thumbCanvas); thumbPlayer.appendChild(thumbLabel);
+                if (hasHover && !isMobile) { thumbPlayer.addEventListener('mouseenter', () => { const hoveredIndex = i; if (expandedIndex !== hoveredIndex) { expandToPlayer(hoveredIndex); } }); }
+                thumbnailsContainer.appendChild(thumbPlayer);
+                thumbnailCanvases[i] = thumbCanvas; thumbnailContexts[i] = thumbCanvas.getContext('2d');
+            }
+            videoGrid.insertBefore(mainPlayer, videoGrid.firstChild); videoGrid.appendChild(thumbnailsContainer);
+            if (video.paused) { drawExpandedView(); }
+        }
+
+        function collapseToGrid() {
+            expandedIndex = -1; videoGrid.classList.remove('expanded'); videoGrid.classList.remove('labels-hide');
+            const existingMain = videoGrid.querySelector('.main-player'); const existingThumbnails = videoGrid.querySelector('.thumbnails'); if (existingMain) existingMain.remove(); if (existingThumbnails) existingThumbnails.remove();
+            if (video.paused) {
+                const videoWidth = video.videoWidth; const videoHeight = video.videoHeight; const halfWidth = videoWidth / 2; const halfHeight = videoHeight / 2;
+                contexts[0].drawImage(video, 0, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+                contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+            }
+        }
+
+        playBtn.addEventListener('click', () => { video.play(); drawFrames(); });
+        pauseBtn.addEventListener('click', () => { video.pause(); });
+        muteBtn.addEventListener('click', () => { video.muted = !video.muted; muteBtn.textContent = video.muted ? 'Unmute' : 'Mute'; });
+
+        video.addEventListener('timeupdate', () => {
+            const progress = (video.currentTime / video.duration) * 100; seekBar.value = progress;
+            const currentMinutes = Math.floor(video.currentTime / 60); const currentSeconds = Math.floor(video.currentTime % 60);
+            const durationMinutes = Math.floor(video.duration / 60); const durationSeconds = Math.floor(video.duration % 60);
+            timeDisplay.textContent = `${currentMinutes.toString().padStart(2, '0')}:${currentSeconds.toString().padStart(2, '0')} / ` + `${durationMinutes.toString().padStart(2, '0')}:${durationSeconds.toString().padStart(2, '0')}`;
+        });
+        seekBar.addEventListener('input', () => { const time = (seekBar.value / 100) * video.duration; video.currentTime = time; });
+        video.addEventListener('seeked', () => { if (video.paused) { if (expandedIndex === -1) { const vw = video.videoWidth, vh = video.videoHeight, hw = vw/2, hh = vh/2; contexts[0].drawImage(video,0,0,hw,hh,0,0,hw,hh); contexts[1].drawImage(video,hw,0,hw,hh,0,0,hw,hh); contexts[2].drawImage(video,0,hh,hw,hh,0,0,hw,hh); contexts[3].drawImage(video,hw,hh,hw,hh,0,0,hw,hh); } else { drawExpandedView(); } } });
+
+        settingsBtn.addEventListener('click', () => {
+            hlsUrlInput.value = videoSrc; const primaryPicker = document.getElementById('accentPrimary'); const secondaryPicker = document.getElementById('accentSecondary');
+            if (primaryPicker) primaryPicker.value = savedPrimary; if (secondaryPicker) secondaryPicker.value = savedSecondary; settingsModal.classList.add('show');
+        });
+        const closeModal = document.getElementById('closeModal'); const cancelBtn = document.getElementById('cancelBtn');
+        closeModal.addEventListener('click', () => { settingsModal.classList.remove('show'); });
+        cancelBtn.addEventListener('click', () => { settingsModal.classList.remove('show'); });
+        saveBtn.addEventListener('click', () => {
+            const newUrl = hlsUrlInput.value.trim(); if (newUrl) { videoSrc = newUrl; localStorage.setItem(key('cachedUrl'), newUrl); video.pause(); loadHLS(); }
+            const primaryPicker = document.getElementById('accentPrimary'); const secondaryPicker = document.getElementById('accentSecondary');
+            const newPrimary = primaryPicker ? primaryPicker.value : savedPrimary; const newSecondary = secondaryPicker ? secondaryPicker.value : savedSecondary;
+            localStorage.setItem(key('accentPrimary'), newPrimary); localStorage.setItem(key('accentSecondary'), newSecondary);
+            document.documentElement.style.setProperty('--primary', newPrimary); document.documentElement.style.setProperty('--primary-2', newSecondary);
+            settingsModal.classList.remove('show');
+        });
+        settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) { settingsModal.classList.remove('show'); } });
+
+        if (isMobile) { video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', ''); video.playsInline = true; }
+    </script>
+</body>
+</html>
