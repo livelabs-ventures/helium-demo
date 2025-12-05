@@ -426,7 +426,8 @@
       if (existingMain) existingMain.remove();
       if (existingThumbnails) existingThumbnails.remove();
 
-      if (video.paused) {
+      // Always draw a frame to the grid canvases if video has data
+      if (video.readyState >= 2) {
         const videoWidth = video.videoWidth;
         const videoHeight = video.videoHeight;
         const halfWidth = videoWidth / 2;
@@ -436,6 +437,11 @@
         contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
         contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
         contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+      }
+
+      // Restart animation loop if video is playing
+      if (!video.paused && !video.ended) {
+        drawFrames();
       }
     }
 
