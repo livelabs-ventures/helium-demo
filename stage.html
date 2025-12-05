@@ -240,6 +240,8 @@
     video.addEventListener('loadedmetadata', () => {
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
+      if (!videoWidth || !videoHeight) return;
+      
       const halfWidth = videoWidth / 2;
       const halfHeight = videoHeight / 2;
       canvases.forEach((canvas) => {
@@ -274,6 +276,7 @@
     function drawFrames() {
       if (video.paused || video.ended) {
         cancelAnimationFrame(animationId);
+        animationId = null;
         return;
       }
       const videoWidth = video.videoWidth;
@@ -410,9 +413,14 @@
       videoGrid.insertBefore(mainPlayer, videoGrid.firstChild);
       videoGrid.appendChild(thumbnailsContainer);
 
-      // Draw frame if video has data ready (readyState >= 2 means at least one frame available)
-      if (video.readyState >= 2) {
+      // Draw initial frame
+      if (video.videoWidth && video.videoHeight) {
         drawExpandedView();
+      }
+      
+      // Start animation if video is playing
+      if (!video.paused && !video.ended) {
+        drawFrames();
       }
     }
 
@@ -426,10 +434,10 @@
       if (existingMain) existingMain.remove();
       if (existingThumbnails) existingThumbnails.remove();
 
-      // Always draw a frame to the grid canvases if video has data
-      if (video.readyState >= 2) {
-        const videoWidth = video.videoWidth;
-        const videoHeight = video.videoHeight;
+      // Draw frame immediately to grid canvases
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      if (videoWidth && videoHeight) {
         const halfWidth = videoWidth / 2;
         const halfHeight = videoHeight / 2;
 
@@ -447,11 +455,17 @@
 
     playBtn.addEventListener('click', () => {
       video.play();
-      drawFrames();
     });
 
     pauseBtn.addEventListener('click', () => {
       video.pause();
+    });
+
+    // Ensure animation loop starts whenever video plays (critical for mobile)
+    video.addEventListener('play', () => {
+      if (!animationId) {
+        drawFrames();
+      }
     });
 
     muteBtn.addEventListener('click', () => {
