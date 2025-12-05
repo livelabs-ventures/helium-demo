@@ -247,8 +247,29 @@
         canvas.height = halfHeight;
       });
       expandToPlayer(0);
-      drawFrames();
     });
+
+    // Use loadeddata to draw initial frame (ensures video frames are available, especially on iOS)
+    video.addEventListener('loadeddata', () => {
+      drawInitialFrame();
+    });
+
+    function drawInitialFrame() {
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      if (!videoWidth || !videoHeight) return;
+      const halfWidth = videoWidth / 2;
+      const halfHeight = videoHeight / 2;
+
+      if (expandedIndex === -1) {
+        contexts[0].drawImage(video, 0, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+        contexts[1].drawImage(video, halfWidth, 0, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+        contexts[2].drawImage(video, 0, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+        contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
+      } else if (mainContext) {
+        drawExpandedView();
+      }
+    }
 
     function drawFrames() {
       if (video.paused || video.ended) {
@@ -389,7 +410,8 @@
       videoGrid.insertBefore(mainPlayer, videoGrid.firstChild);
       videoGrid.appendChild(thumbnailsContainer);
 
-      if (video.paused) {
+      // Draw frame if video has data ready (readyState >= 2 means at least one frame available)
+      if (video.readyState >= 2) {
         drawExpandedView();
       }
     }
