@@ -249,6 +249,7 @@
         canvas.height = halfHeight;
       });
       expandToPlayer(0);
+      drawFrames();
     });
 
     // Use loadeddata to draw initial frame (ensures video frames are available, especially on iOS)
@@ -418,8 +419,8 @@
         drawExpandedView();
       }
       
-      // Start animation if video is playing
-      if (!video.paused && !video.ended) {
+      // Start animation if video is playing and loop isn't already running
+      if (!video.paused && !video.ended && !animationId) {
         drawFrames();
       }
     }
@@ -447,8 +448,8 @@
         contexts[3].drawImage(video, halfWidth, halfHeight, halfWidth, halfHeight, 0, 0, halfWidth, halfHeight);
       }
 
-      // Restart animation loop if video is playing
-      if (!video.paused && !video.ended) {
+      // Start animation loop if video is playing and loop isn't already running
+      if (!video.paused && !video.ended && !animationId) {
         drawFrames();
       }
     }
